@@ -1,8 +1,10 @@
-import { useMemo, useState } from "react";
 import { List } from "@raycast/api";
 import json2md from "json2md";
 import groupBy from "lodash.groupby";
+import orderBy from "lodash.orderby";
+import { useMemo, useState } from "react";
 import { PokemonV2Pokemonmove } from "../types";
+import { typeColor } from "../utils";
 
 export default function PokemonMoves(props: {
   name: string;
@@ -16,20 +18,37 @@ export default function PokemonMoves(props: {
     return m;
   });
 
-  const versionGroups = moves.reduce((out: { [name: string]: string }, cur) => {
-    out[cur.pokemon_v2_versiongroup.id] =
-      cur.pokemon_v2_versiongroup.pokemon_v2_versions
-        .map((v) => v.pokemon_v2_versionnames[0]?.name || v.name)
-        .join("/");
-    return out;
-  }, {});
+  let generations = Object.entries(
+    groupBy(moves, (m) => m.pokemon_v2_versiongroup.generation_id),
+  ).map(([generation_id, groups]) => {
+    const versiongroups = groupBy(
+      groups,
+      (g) => g.pokemon_v2_versiongroup.name,
+    );
+
+    return {
+      generation_id,
+      generation:
+        groups[0].pokemon_v2_versiongroup.pokemon_v2_generation
+          .pokemon_v2_generationnames[0].name,
+      version_groups: Object.entries(versiongroups).map(([name, entries]) => ({
+        key: name,
+        value: name,
+        title: entries[0].pokemon_v2_versiongroup.pokemon_v2_versions
+          .map((v) => v.pokemon_v2_versionnames[0].name)
+          .join(" & "),
+      })),
+    };
+  });
+
+  generations = orderBy(generations, "generation_id", "desc");
 
   const [versionGroup, setVersionGroup] = useState<string>();
 
   const pokemonMoves = useMemo(() => {
     const moves = versionGroup
       ? props.moves.filter(
-          (m) => m.pokemon_v2_versiongroup.id.toString() === versionGroup,
+          (m) => m.pokemon_v2_versiongroup.name === versionGroup,
         )
       : props.moves;
 
@@ -50,27 +69,47 @@ export default function PokemonMoves(props: {
           tooltip="Change Version Group"
           onChange={setVersionGroup}
         >
-          {Object.entries(versionGroups)
-            .sort((a, b) => Number(b[0]) - Number(a[0]))
-            .map(([key, value]) => (
-              <List.Dropdown.Item key={key} value={key} title={value} />
-            ))}
+          {generations.map(({ generation_id, generation, version_groups }) => {
+            return (
+              <List.Dropdown.Section key={generation_id} title={generation}>
+                {version_groups.map(({ key, value, title }) => {
+                  return (
+                    <List.Dropdown.Item key={key} value={value} title={title} />
+                  );
+                })}
+              </List.Dropdown.Section>
+            );
+          })}
         </List.Dropdown>
       }
     >
-      {Object.entries(pokemonMoves).map(([method, methodMoves]) => {
-        const moves =
-          method === "Machine"
-            ? methodMoves.sort(
-                (a, b) =>
-                  a.pokemon_v2_move.pokemon_v2_machines[0]?.machine_number -
-                  b.pokemon_v2_move.pokemon_v2_machines[0]?.machine_number,
-              )
-            : methodMoves;
+      {Object.entries(pokemonMoves).map(([method, moves]) => {
+        let sortedMoves;
+        switch (method) {
+          case "Machine":
+            sortedMoves = orderBy(
+              moves,
+              (m) => m.pokemon_v2_move.pokemon_v2_machines[0]?.machine_number,
+            );
+            break;
+          case "Egg":
+          case "Tutor":
+            sortedMoves = orderBy(
+              moves,
+              (m) => m.pokemon_v2_move.pokemon_v2_movenames[0].name,
+            );
+            break;
+          case "Level up":
+            sortedMoves = orderBy(moves, (m) => m.level);
+            break;
+          default:
+            sortedMoves = moves;
+            break;
+        }
 
         return (
           <List.Section title={method} key={method}>
-            {moves.map((move) => {
+            {sortedMoves.map((move) => {
               let text;
               switch (move.move_learn_method_id) {
                 case 1:
@@ -80,7 +119,7 @@ export default function PokemonMoves(props: {
                   text = move.pokemon_v2_move.pokemon_v2_machines[0]
                     ? `TM${move.pokemon_v2_move.pokemon_v2_machines[0]?.machine_number
                         .toString()
-                        .padStart(2, "0")}`
+                        .padStart(3, "0")}`
                     : "";
                 // eslint-disable-next-line no-fallthrough
                 default:
@@ -93,17 +132,7 @@ export default function PokemonMoves(props: {
                   title={move.pokemon_v2_move.pokemon_v2_movenames[0].name}
                   keywords={[move.pokemon_v2_move.pokemon_v2_movenames[0].name]}
                   icon={`moves/${move.pokemon_v2_move.pokemon_v2_movedamageclass.pokemon_v2_movedamageclassnames[0].name}.svg`}
-                  accessories={[
-                    {
-                      text,
-                    },
-                    {
-                      tooltip:
-                        move.pokemon_v2_move.pokemon_v2_type
-                          .pokemon_v2_typenames[0].name,
-                      icon: `types/${move.pokemon_v2_move.pokemon_v2_type.name}.svg`,
-                    },
-                  ]}
+                  accessories={[{ text }]}
                   detail={
                     <List.Item.Detail
                       markdown={json2md([
@@ -123,6 +152,21 @@ export default function PokemonMoves(props: {
                       ])}
                       metadata={
                         <List.Item.Detail.Metadata>
+                          <List.Item.Detail.Metadata.TagList title="Type">
+                            <List.Item.Detail.Metadata.TagList.Item
+                              text={
+                                move.pokemon_v2_move.pokemon_v2_type
+                                  .pokemon_v2_typenames[0].name
+                              }
+                              icon={`types/${move.pokemon_v2_move.pokemon_v2_type.name}.svg`}
+                              color={
+                                typeColor[
+                                  move.pokemon_v2_move.pokemon_v2_type.name
+                                ]
+                              }
+                            />
+                          </List.Item.Detail.Metadata.TagList>
+
                           <List.Item.Detail.Metadata.Label
                             title="Power"
                             text={move.pokemon_v2_move.power?.toString() || "-"}

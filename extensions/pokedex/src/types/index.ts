@@ -23,11 +23,23 @@ export interface PokemonV2Pokemon {
   name: string;
   height: number;
   weight: number;
+  pokemon_v2_encounters: PokemonV2Encounter[];
   pokemon_v2_pokemonabilities: PokemonV2Pokemonability[];
+  pokemon_v2_pokemonforms: PokemonV2Pokemonform[];
   pokemon_v2_pokemonmoves: PokemonV2Pokemonmove[];
   pokemon_v2_pokemonstats: PokemonV2Pokemonstat[];
   pokemon_v2_pokemontypes: PokemonV2Pokemontype[];
   pokemon_v2_pokemonspecy: PokemonV2Pokemonspecy;
+}
+
+export interface PokemonV2Encounter {
+  pokemon_v2_locationarea: PokemonV2Locationarea;
+  pokemon_v2_version: PokemonV2Version;
+}
+
+export interface PokemonV2Locationarea {
+  name: string;
+  pokemon_v2_locationareanames: PokemonV2Name[];
 }
 
 export interface PokemonV2Pokemonability {
@@ -111,10 +123,11 @@ export interface PokemonV2Pokemonspecy {
   is_legendary: boolean;
   is_mythical: boolean;
   name: string;
+  pokemon_shape_id: number;
   pokemon_v2_pokemondexnumbers: PokemonV2Pokemondexnumber[];
   pokemon_v2_evolutionchain: PokemonV2Evolutionchain;
   pokemon_v2_pokemonegggroups: PokemonV2Pokemonegggroup[];
-  pokemon_v2_pokemons: PokemonV2PokemonspecyPokemonV2Pokemon[];
+  pokemon_v2_pokemons: PokemonV2Pokemon[];
   pokemon_v2_pokemonspeciesflavortexts: PokemonV2Pokemonspeciesflavortext[];
   pokemon_v2_pokemonspeciesnames: PokemonV2Pokemonspeciesname[];
 }
@@ -158,12 +171,6 @@ export interface PokemonV2Egggroup {
   name: string;
 }
 
-export interface PokemonV2PokemonspecyPokemonV2Pokemon {
-  name: string;
-  pokemon_v2_pokemonforms: PokemonV2Pokemonform[];
-  pokemon_v2_pokemontypes: PokemonV2Pokemontype[];
-}
-
 export interface PokemonV2Pokemonform {
   form_name: string;
   pokemon_id: number;
@@ -205,4 +212,12 @@ export interface PokemonV2Pokemontype {
 export interface PokemonV2Type {
   name: string;
   pokemon_v2_typenames: PokemonV2Name[];
+  pokemonV2TypeefficaciesByTargetTypeId: PokemonV2Typeefficacy[];
+}
+
+export interface PokemonV2Typeefficacy {
+  damage_factor: number;
+  damage_type_id: number;
+  target_type_id: number;
+  pokemon_v2_type: PokemonV2Type;
 }
